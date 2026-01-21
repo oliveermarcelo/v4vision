@@ -1,14 +1,5 @@
 version: '3.8'
 
-# ============================================
-# V4VISION - Dashboard Multi-Tenant
-# ============================================
-# Este stack é ISOLADO e não interfere em 
-# outros containers/stacks do Portainer.
-# 
-# Porta padrão: 8585 (altere em V4VISION_PORT)
-# ============================================
-
 services:
   v4vision_db:
     image: postgres:15-alpine
@@ -21,12 +12,7 @@ services:
     volumes:
       - v4vision_postgres_data:/var/lib/postgresql/data
     networks:
-      - v4vision_internal_network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${V4VISION_DB_USER:-v4vision_user} -d ${V4VISION_DB_NAME:-v4vision_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - v4vision_network
 
   v4vision_backend:
     build: ./backend
@@ -41,18 +27,15 @@ services:
       - DB_PASSWORD=${V4VISION_DB_PASSWORD:-v4vision_secret_2024}
       - DB_HOST=v4vision_db
       - DB_PORT=5432
-      - CORS_ALLOWED_ORIGINS=${V4VISION_CORS_ORIGINS:-http://localhost,http://localhost:8585}
+      - CORS_ALLOWED_ORIGINS=${V4VISION_CORS_ORIGINS:-http://localhost:8585}
     volumes:
       - v4vision_static:/app/staticfiles
       - v4vision_media:/app/media
-   depends_on:
+    depends_on:
       - v4vision_db
     networks:
-      - v4vision_internal_network
-    command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 v4vision.wsgi:application"
+      - v4vision_network
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 --workers 3 v4vision.wsgi:application"
 
   v4vision_frontend:
     build: ./frontend
@@ -63,19 +46,13 @@ services:
     depends_on:
       - v4vision_backend
     networks:
-      - v4vision_internal_network
+      - v4vision_network
 
-# Rede ISOLADA - não interfere em outras redes
 networks:
-  v4vision_internal_network:
-    name: v4vision_internal_network
+  v4vision_network:
     driver: bridge
 
-# Volumes com prefixo único - não conflita com outros volumes
 volumes:
   v4vision_postgres_data:
-    name: v4vision_postgres_data
   v4vision_static:
-    name: v4vision_static
   v4vision_media:
-    name: v4vision_media
