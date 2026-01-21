@@ -45,9 +45,8 @@ services:
     volumes:
       - v4vision_static:/app/staticfiles
       - v4vision_media:/app/media
-    depends_on:
-      v4vision_db:
-        condition: service_healthy
+   depends_on:
+      - v4vision_db
     networks:
       - v4vision_internal_network
     command: >
